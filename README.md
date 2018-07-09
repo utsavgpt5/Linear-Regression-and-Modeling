@@ -9,3 +9,6 @@ She is interested in learning what attributes make a movie popular. She is also 
 As part of this project you will complete exploratory data analysis (EDA), modeling, and prediction.
 
 All analysis must be completed using the R programming language via RStudio, and your write up must be an R Markdown document. To help you get started we provide a template Rmd file below (see Rmd template in the Required files section below). Download this file, and fill in each section.
+
+
+Link for Project HTML :https://s3.amazonaws.com/coursera-uploads/peer-review/c5157a9fc51e8cb92caf91e0c1225354/reg_model_project.html
