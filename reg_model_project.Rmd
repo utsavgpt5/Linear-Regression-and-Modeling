@@ -1,0 +1,270 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(gridExtra)
+library(knitr)
+```
+
+### Load data
+
+```{r load-data}
+load("movies.Rdata")
+```
+* * *
+
+## Part 1: Data
+The data set is comprised of 651 randomly sampled movies produced and released before 2016.
+As this data is observational, not experimental, there are chances of collinearity in the Multiple Linear Regression Model.
+* * *
+
+## Part 2: Research question
+
+The research question is:
+What are the attributes that make movie popular?
+
+This question is of interest because it can help predict the success of the movie based on it's attributes.
+
+* * *
+
+## Part 3: Exploratory data analysis
+For EDA purpose, we are eliminating some variables, which are not relevant and keeping only the following ones(15) to take forward our analysis.
+genre, runtime,mpaa_rating,critics_score,critics_rating,audience_score,audience_rating,imbd_rating,imdb_num_votes,best_pic_nom,best_pic_win,best_dir_win,best_actor_win,best_actress_win,top__box
+
+For this purpose, we have created a new variable "Sub_movies"
+```{r}
+Sub_movies<-movies%>%select(-c(director:rt_url,thtr_rel_year:dvd_rel_day,studio,title,title_type))
+Sub_movies[1:5,1:5]
+```
+
+The above gives a sneak peak into the new data frame.
+
+Now, for determining popularity of the movie we are taking combination of two variables "imdb_rating" and "imdb_num_votes"
+We create a new variable "movie_popularity" which is created by multiplying "imdb_rating" and log of "imdb_num_votes"
+
+We take log of "imdb_num_votes" here because it will give a better explaination of the combination rather than simply multiplying, also it makes the response variable smaller without taking away it's properties.
+We add the new variable to "Sub_movies"
+
+```{r}
+Sub_movies$movie_popularity<-movies$imdb_rating*log(movies$imdb_num_votes)
+```
+###Exploratory Data Analysis
+Now, Let's plot some graphs!
+
+```{r}
+ar<-ggplot(data=Sub_movies, aes(x=audience_score ,y=movie_popularity, colour=audience_rating))+geom_point()
+cr<-ggplot(data=Sub_movies, aes(x=critics_score ,y=movie_popularity, colour=critics_rating))+geom_point()
+rt<-ggplot(data=Sub_movies, aes(x=runtime ,y=movie_popularity,colour=critics_rating))+geom_point()
+
+amp<-ggplot(data=Sub_movies, aes(x=audience_score ,y=movie_popularity, colour=mpaa_rating))+geom_point()
+
+mpr<-Sub_movies%>%group_by(mpaa_rating)%>%ggplot(aes(x=mpaa_rating,y=movie_popularity))+geom_boxplot()
+g<-Sub_movies%>%group_by(genre)%>%ggplot(aes(x=genre,y=movie_popularity))+theme(axis.text.x = element_text(angle = 90, hjust = 1))+geom_boxplot()
+pn<- ggplot(data=Sub_movies, aes(x=best_pic_nom ,y=movie_popularity))+geom_boxplot()
+pw<- ggplot(data=Sub_movies, aes(x=best_pic_win ,y=movie_popularity))+geom_boxplot()
+amw<-ggplot(data=Sub_movies, aes(x=best_actor_win ,y=movie_popularity))+geom_boxplot()
+afw<-ggplot(data=Sub_movies, aes(x=best_actress_win ,y=movie_popularity))+geom_boxplot()
+dw<-ggplot(data=Sub_movies, aes(x=best_dir_win ,y=movie_popularity))+geom_boxplot()
+bo<-ggplot(data=Sub_movies, aes(x=top200_box ,y=movie_popularity))+geom_boxplot()
+
+par(mfrow=c(4,3))
+grid.arrange(ar,cr,rt,amp,mpr,pn,pw,amw,afw,dw,bo)
+par(mfrow=c(1,1))
+g
+```
+
+1.From the above graphs we see there is a clear relationship in popularity of the movie and   variables like audience_rating,critics_rating,best_pic_nom,best_pic_win,top200_box
+
+2.But the relationsip between popularity and variables like mpaa_rating,genre,runtime,best_actor_win,best_actress_win,best_dir_win  is a little vague.
+
+3.We can get better idea of these vague relationships by using some summary statistics on  them.
+
+###Summary Statistics
+```{r}
+genre_summary <-Sub_movies%>%group_by(genre) %>%summarise(movie_popularity_median=median(movie_popularity), num_median=median(imdb_num_votes),imdb_rating_median=median(imdb_rating),critic_score_median=median(critics_score),audience_score_median=median(audience_score),total_count=n()) %>%arrange(desc(movie_popularity_median))
+mpaa_rating_summary <-Sub_movies%>%group_by(mpaa_rating) %>%summarise(movie_popularity_median=median(movie_popularity), num_median=median(imdb_num_votes),imdb_rating_median=median(imdb_rating),critic_score_median=median(critics_score),audience_score_median=median(audience_score),total_count=n()) %>%arrange(desc(movie_popularity_median))
+bamw_summary <-Sub_movies%>%group_by(best_actor_win) %>%summarise(movie_popularity_median=median(movie_popularity), num_median=median(imdb_num_votes),imdb_rating_median=median(imdb_rating),critic_score_median=median(critics_score),audience_score_median=median(audience_score),total_count=n()) %>%arrange(desc(movie_popularity_median))
+bafw_summary <-Sub_movies%>%group_by(best_actress_win) %>%summarise(movie_popularity_median=median(movie_popularity), num_median=median(imdb_num_votes),imdb_rating_median=median(imdb_rating),critic_score_median=median(critics_score),audience_score_median=median(audience_score),total_count=n()) %>%arrange(desc(movie_popularity_median))
+bdw_summary <-Sub_movies%>%group_by(best_dir_win) %>%summarise(movie_popularity_median=median(movie_popularity), num_median=median(imdb_num_votes),imdb_rating_median=median(imdb_rating),critic_score_median=median(critics_score),audience_score_median=median(audience_score),total_count=n()) %>%arrange(desc(movie_popularity_median))
+genre_summary
+mpaa_rating_summary
+bamw_summary
+bafw_summary
+bdw_summary
+```
+The above summary statistics have been run on the median of the variables and arranged on the basis of decreasing order of median movie popularity
+
+1. In the first table, we see avg score of movie with genre 'Animation' is highest but highest imdb_rating are scored by genre 'Musical & Performing Arts' and 'Documentary'
+This may be because the former has more number of votes than the latter two.
+
+2.Second table shows movies with 'G' certification have scored higher on avg. but imdb_rating of 'Unrated' is highest. But, as seen previously, 'Unrated' has significant lower votes than 'G'
+
+3.The third, fourth and fifth table signifies there is a slight difference(increament) in movie popularity and imdb_rating caused if actor/actress wins award but there is significant difference(increament) in popularity if directors wins
+
+```{r}
+top200<-Sub_movies%>% filter(top200_box=="yes")
+table(top200$genre)
+```
+
+
+
+* * *
+
+## Part 4: Modeling
+*For modeling purpose we are using:
+genre, runtime,mpaa_rating,critics_score,audience_score,best_pic_nom,best_pic_win,best_dir_win,best_actor_win,best_actress_win,top__box
+
+*audience_rating and critics_ratings are excluded because of possible collinearity.
+
+*Although audience_score and critcs_score, best_pic_nom and best_pic_win gives us a hint of collinearity as well, but we will still include them and create a model excluding them later.
+
+We are using "Backward Elimination" method for constructing the model using "Adjusted R squared" as criteria for elimination purpose.
+
+< 1 >
+For the initial step, let's take the full model and eliminate variable one by one with replacement.
+After it we make a data frame indicating adj r squared values when we eliminate particular variable
+```{r}
+mlr_model0<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model1<- lm(movie_popularity~runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model2<- lm(movie_popularity~genre+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model3<- lm(movie_popularity~genre+runtime+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model4<- lm(movie_popularity~genre+runtime+mpaa_rating+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model5<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model6<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_win+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model7<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_actor_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model8<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actress_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model9<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model10<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+top200_box,data=Sub_movies)
+mlr_model11<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win+best_dir_win,data=Sub_movies)
+
+adr_df1<-data.frame(eliminated=c("None", "genre"," runtime", "mpaa_rating", "critics_score", "audience_score", "best_pic_nom", "best_pic_win", "best_actor_win",  "best_actress_win","best_dir_win", "top200_box"), Adjusted_RSquared=c(summary(mlr_model0)$adj.r.squared, summary(mlr_model1)$adj.r.squared, summary(mlr_model2)$adj.r.squared, summary(mlr_model3)$adj.r.squared, summary(mlr_model4)$adj.r.squared, summary(mlr_model5)$adj.r.squared, summary(mlr_model6)$adj.r.squared, summary(mlr_model7)$adj.r.squared, summary(mlr_model8)$adj.r.squared, summary(mlr_model9)$adj.r.squared, summary(mlr_model10)$adj.r.squared,summary(mlr_model11)$adj.r.squared) )
+adr_df1
+```
+We observe variable "best_actress_win" is bringing down Adjusted R Squared value.So, we eliminate it and again build our model 
+
+<2>
+
+```{r}
+mlr_model0<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model1<- lm(movie_popularity~runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model2<- lm(movie_popularity~genre+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model3<- lm(movie_popularity~genre+runtime+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model4<- lm(movie_popularity~genre+runtime+mpaa_rating+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model5<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model6<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model7<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model8<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_dir_win+top200_box,data=Sub_movies)
+mlr_model9<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+top200_box,data=Sub_movies)
+mlr_model10<- lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_dir_win,data=Sub_movies)
+
+adr_df2<-data.frame(eliminated=c("None", "genre"," runtime", "mpaa_rating", "critics_score", "audience_score", "best_pic_nom", "best_pic_win", "best_actor_win","best_dir_win", "top200_box"), Adjusted_RSquared=c(summary(mlr_model0)$adj.r.squared, summary(mlr_model1)$adj.r.squared, summary(mlr_model2)$adj.r.squared, summary(mlr_model3)$adj.r.squared, summary(mlr_model4)$adj.r.squared, summary(mlr_model5)$adj.r.squared, summary(mlr_model6)$adj.r.squared, summary(mlr_model7)$adj.r.squared, summary(mlr_model8)$adj.r.squared, summary(mlr_model9)$adj.r.squared, summary(mlr_model10)$adj.r.squared) )
+adr_df2
+```
+
+Now , we see we are getting best value of adjusted r squared without elimination of any variable. Although, 'best_acor_win' is quite close, but we would not eliminate it.
+
+So, 'mlr_model0' is our final model
+Let's look into it.
+```{r}
+summary(mlr_model0)
+summary(mlr_model0)$adj.r.squared
+```
+So, we get Adjusted r Squared value of about 0.623
+
+Now, as we talked about other possible case of collinearity in:
+audience_score and critcs_score, best_pic_nom and best_pic_win 
+
+Let's just check the model after eliminating best_pic_nom and audience_score
+```{r}
+
+mlr_model_x1<-lm(movie_popularity~genre+runtime+mpaa_rating+critics_score+best_pic_win+best_actor_win+best_dir_win+top200_box,data=Sub_movies)
+summary(mlr_model_x1)
+summary(mlr_model_x1)$adj.r.squared
+```
+
+From this, we ger Adjsuted R Squared to be 0.431, which is a significant drop!
+
+Nevertheless, we will use "mlr_model0"(parsimonious model) for our prediction purposes,which yeilded Adjsuted R Squared to be 0.623
+
+But, before that, let us check whether our model satisfies Multiple Linear Regression conditions.
+There are four checks for it.
+
+1.Independence of residuals
+  As data was randomly sampled, this condition is met.
+  
+2. Linearity
+```{r}
+par(mfrow=c(1,3))
+plot(mlr_model0$residuals ~ Sub_movies$audience_score[1:650],xlab="Residuals",ylab="Audience Score")
+abline(lm(mlr_model0$residuals ~ Sub_movies$audience_score[1:650]))
+plot(mlr_model0$residuals ~ Sub_movies$critics_score[1:650],xlab="Residuals",ylab="Critics Score")
+abline(lm(mlr_model0$residuals ~ Sub_movies$critics_score[1:650]))
+plot(mlr_model0$residuals ~ Sub_movies$runtime[1:650],xlab="Residuals",ylab="Runtime")
+abline(lm(mlr_model0$residuals ~ Sub_movies$runtime[1:650]))
+```
+
+From the graphs, we can see, model is linear.
+
+3.Constant Variability of Residuals
+
+```{r}
+par(mfrow=c(1,2))
+plot(mlr_model0$residuals ~ mlr_model0$fitted.values,xlab="Fitted Values",ylab="Residuals",main="fitted vs residuals")
+plot(abs(mlr_model0$residuals) ~ mlr_model0$fitted.values,xlab="Absolute Fitted Values",ylab="Residuals",main="abs fitted vs residuals")
+```
+
+Here, we see this condition is also valid, as we see no fan-shape distribution.
+
+4.Nearly normal residuals
+```{r}
+par(mfrow=c(1,2))
+hist(mlr_model0$residuals,xlab="Residuals",main="Residuals Histogram")
+qqnorm(mlr_model0$residuals)
+qqline(mlr_model0$residuals)
+```
+There is a very slight skew, but otherwise model seems to be fairly normal.
+* * *
+
+## Part 5: Prediction
+
+For prediction purpose, we have taken 2016 blockbuster movie "Deadpool" by Marvel Studios
+The movie was of genre Action, Adventure and Comedy. So, we have put it into 'Action & Adventure' genre.
+We put the data collected for "Deadpool", in a new variable "movie_2016".
+```{r}
+movie_2016<-data.frame(critics_score=83,audience_score=90,best_pic_nom="no", best_pic_win="no",best_dir_win="no",best_actor_win="no", genre="Action & Adventure",mpaa_rating="R",runtime=c(108),top200_box="yes")
+```
+Now, let us predict the interval for popularity score using our model and compare it with original expected value.
+```{r}
+predict(mlr_model0, newdata=movie_2016, interval="prediction")
+original_value<-8*log(744347)
+original_value
+```
+We see, the predicted value is within the predicted interval, slightly towards higher side. Than may because of the pre-release hype of the movie as it was waited by Marvel fans for a long time.
+Also, 'Comedy' genre might also have affected it.
+
+References:Rotten Tomatoes- https://www.rottentomatoes.com/m/deadpool  
+           IMDB           - https://www.imdb.com/title/tt1431045/?ref_=nv_sr_2
+* * *
+
+## Part 6: Conclusion
+
+We conclude following from our study:
+
+1.We see Oscar nomination or wins for the movie contributes heavily to it's popularity. Also, if the movie is in TOP 200 Box office collection list, it is a significant contributer.
+
+2. Animation movies are watched by most of the people and they also score the highest in terms of popularity despite being rated lower than many other genres on imdb.
+
+3.'Drama' and 'Action & Adventure' movies have made it more to TOP 200 BOX Office movies,as compared to 0 times of 'Animation' which is surprising.
